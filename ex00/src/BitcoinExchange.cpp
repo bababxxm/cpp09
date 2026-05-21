@@ -6,13 +6,17 @@
 /*   By: sklaokli <sklaokli@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/13 14:57:16 by sklaokli          #+#    #+#             */
-/*   Updated: 2026/05/22 02:15:20 by sklaokli         ###   ########.fr       */
+/*   Updated: 2026/05/22 04:04:33 by sklaokli         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "BitcoinExchange.hpp"
 
-// --- Exception --- //
+/* ************************************************************************** */
+/*                                                                            */
+/*                               EXCEPTIONS                                   */
+/*                                                                            */
+/* ************************************************************************** */
 
 BitcoinExchange::Exception::Exception() : _msg("Error: BitcoinExchange") {}
 
@@ -34,7 +38,11 @@ const char* BitcoinExchange::Exception::what() const throw() {
 	return _msg.c_str();
 }
 
-// --- BitcoinExchange --- //
+/* ************************************************************************** */
+/*                                                                            */
+/*                          ORTHODOX CANONICAL FORMS                          */
+/*                                                                            */
+/* ************************************************************************** */
 
 BitcoinExchange::BitcoinExchange() {}
 
@@ -50,68 +58,166 @@ BitcoinExchange& BitcoinExchange::operator=(const BitcoinExchange& other) {
 
 BitcoinExchange::~BitcoinExchange() {}
 
-std::string BitcoinExchange::trimWhitespace(const std::string& str) const {
-	std::string::size_type first = str.find_first_not_of(" \t\r\n");
-	if (first == std::string::npos) {
-		return "";
-	}
-	std::string::size_type last = str.find_last_not_of(" \t\r\n");
-	return str.substr(first, (last - first + 1));
-}
+/* ************************************************************************** */
+/*                                                                            */
+/*                             PUBLIC METHODS                                 */
+/*                                                                            */
+/* ************************************************************************** */
 
-std::vector<std::string> BitcoinExchange::splitTokens(
-    const std::string& str, char delimiter) const {
+/**
+ * @brief Parses the internal reference CSV database to populate exchange rates.
+ *
+ * Opens the target database file stream and validates its structural format.
+ * Skips invalid calendar dates and bad numerical input rows. Populates the
+ * internal lookup map with valid date-to-rate pairs.
+ *
+ * @param path System path to the historical CSV database file.
+ * @throws Exception if the file cannot be accessed or headers are malformed.
+ */
+void BitcoinExchange::loadDatabase(const std::string& path) {
+	std::ifstream dbFile(path.c_str());
+	if (!dbFile.is_open()) {
+		throw Exception(std::string(strerror(errno)) + " => " + path);
+	}
+
+	double exchangeRate;
+	std::string date;
+	std::string line;
 	std::vector<std::string> tokens;
-	std::stringstream ss(str);
-	std::string token;
+	bool is_header = true;
 
-	while (std::getline(ss, token, delimiter)) {
-		tokens.push_back(token);
+	while (std::getline(dbFile, line)) {
+		if (line.empty()) {
+			continue;
+		}
+		tokens = splitTokens(line, ',');
+		if (tokens.size() != 2) {
+			std::cerr << "Error: bad input => " << line << std::endl;
+			continue;
+		}
+		if (is_header) {
+			if (!isValidHeader(tokens, "date", "exchange_rate")) {
+				throw Exception("invalid database file header structure.");
+			}
+			is_header = false;
+			continue;
+		}
+		date = tokens[0];
+		if (!isValidDate(date)) {
+			continue;
+		}
+		exchangeRate = parseValue(tokens[1], true);
+		if (exchangeRate == -1.0) {
+			continue;
+		}
+		_database[date] = exchangeRate;
 	}
-	for (std::vector<std::string>::iterator it = tokens.begin();
-	     it != tokens.end(); ++it) {
-		*it = trimWhitespace(*it);
-	}
-	return tokens;
-}
-
-std::string BitcoinExchange::getPresentDateString() const {
-	std::time_t rawTime = std::time(NULL);
-	std::tm* timeInfo = std::localtime(&rawTime);
-
-	char buffer[11];
-	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d", timeInfo);
-
-	return std::string(buffer);
-}
-
-int BitcoinExchange::extractDigits(const std::string& str) const {
-	for (std::string::size_type i = 0; i < str.length(); ++i) {
-		if (!std::isdigit(str[i])) return -1;
-	}
-	return std::atoi(str.c_str());
+	dbFile.close();
 }
 
 /**
- * @brief Validates if a date string is chronologically and contextually valid.
+ * @brief Main execution loop for parsing and evaluating client query lists.
  *
- * Implements strict calendar validations under C++98 compliance:
+ * Streams the user input file line-by-line. Coordinates string tokenization,
+ * structural validation, date consistency checks, and exchange amount lookups
+ * before printing the final transaction evaluation directly to standard output.
  *
- * 1. isInvalidFormat: Enforces structural checks (Must be YYYY-MM-DD).
- *
- * 2. isOutOfBoundsDate: Rejects inputs predating 2009-01-02 or postdating
- *    the dynamic present time of the local host system clock.
- *
- * 3. containsNonDigits: Rejects alpha characters caught by extractDigits().
- *
- * 4. isLeapYear: Dynamically updates February's max capacity to 29 days.
- *
- * 5. impossibleDate: Enforces month boundaries and check if the day is
- *    possible.
- *
- * @param date The raw date string to validate.
- * @return true if the date is fully valid, false otherwise.
+ * @param path System path to the client input file to process.
+ * @throws Exception if the input file cannot be opened.
  */
+void BitcoinExchange::processInput(const std::string& path) {
+	std::ifstream inputFile(path.c_str());
+	if (!inputFile.is_open()) {
+		throw Exception(std::string(strerror(errno)) + " => " + path);
+	}
+
+	double value;
+	std::string date;
+	double amount;
+	std::string line;
+	std::vector<std::string> tokens;
+	bool is_header = true;
+
+	while (std::getline(inputFile, line)) {
+		if (line.empty()) {
+			continue;
+		}
+		tokens = splitTokens(line, '|');
+		if (tokens.size() != 2) {
+			std::cerr << "Error: bad input => " << line << std::endl;
+			continue;
+		}
+		if (is_header) {
+			if (!isValidHeader(tokens, "date", "value")) {
+				throw Exception("invalid input file header structure.");
+			}
+			is_header = false;
+			continue;
+		}
+		date = tokens[0];
+		if (!isValidDate(date)) {
+			continue;
+		}
+		value = parseValue(tokens[1], false);
+		if (value == -1.0) {
+			continue;
+		}
+		amount = getExchangeAmount(date, value);
+		if (amount == -1.0) {
+			continue;
+		}
+		std::cout << date << " => " << value << " = " << amount << std::endl;
+	}
+	inputFile.close();
+}
+
+/* ************************************************************************** */
+/*                                                                            */
+/*                             PRIVATE METHODS                                */
+/*                                                                            */
+/* ************************************************************************** */
+
+/**
+ * @brief Resolves the target currency amount using closest historical records.
+ *
+ * Employs a lower_bound binary search strategy on the database map. Returns a
+ * constant iterator pointing to the first element equal to or greater than the
+ * key. If the exact date does not exist, it decrements the iterator to fall
+ * back to the closest past chronological record.
+ *
+ * @param date The target date string (YYYY-MM-DD) to locate.
+ * @param value The multiplier transaction currency volume amount.
+ * @return Total calculated value, or -1.0 if the date predates the database.
+ */
+double BitcoinExchange::getExchangeAmount(
+    const std::string& date, double value) const {
+	std::map<std::string, double>::const_iterator it =
+	    _database.lower_bound(date);
+	if (it != _database.end() && it->first != date) {
+		if (it == _database.begin()) {
+			std::cerr << "Error: no exchange data available before "
+			          << it->first << std::endl;
+			return -1.0;
+		}
+		--it;
+	} else if (it == _database.end()) {
+		if (!_database.empty()) {
+			it = --_database.end();
+		} else {
+			std::cerr << "Error: exchange database is empty." << std::endl;
+			return -1.0;
+		}
+	}
+	return value * it->second;
+}
+
+bool BitcoinExchange::isValidHeader(const std::vector<std::string>& tokens,
+    const std::string& match1, const std::string& match2) const {
+	std::string firstRowHeader = tokens[0];
+	std::string secondRowHeader = tokens[1];
+	return firstRowHeader == match1 && secondRowHeader == match2;
+}
+
 bool BitcoinExchange::isValidDate(const std::string& date) const {
 	bool isInvalidFormat =
 	    (date.length() != 10 || date[4] != '-' || date[7] != '-');
@@ -159,6 +265,17 @@ bool BitcoinExchange::isValidDate(const std::string& date) const {
 	return true;
 }
 
+/**
+ * @brief Validates and converts a string into a double precision value.
+ *
+ * Parses raw strings into float representations using robust pointer trailing
+ * validations. Enforces structural rules and strictly limits values to a
+ * maximum threshold of 1000.0 for evaluation queries.
+ *
+ * @param str The raw string to extract the value from.
+ * @param isDataBase Boolean flag to bypass the 1000.0 maximum ceiling rule.
+ * @return The parsed double value, or -1.0 if syntax or bounds checks fail.
+ */
 double BitcoinExchange::parseValue(
     const std::string& str, bool isDataBase) const {
 	if (str.empty()) {
@@ -194,120 +311,51 @@ double BitcoinExchange::parseValue(
 	return value;
 }
 
-bool BitcoinExchange::isValidHeader(const std::vector<std::string>& tokens,
-    const std::string& match1, const std::string& match2) const {
-	std::string firstRowHeader = tokens[0];
-	std::string secondRowHeader = tokens[1];
-	return firstRowHeader == match1 && secondRowHeader == match2;
+/* ************************************************************************** */
+/*                                                                            */
+/*                              UTILS & HELPERS                               */
+/*                                                                            */
+/* ************************************************************************** */
+
+std::string BitcoinExchange::trimWhitespace(const std::string& str) const {
+	const std::string whiteSpace = " \t\r\n";
+	std::string::size_type first = str.find_first_not_of(whiteSpace);
+	if (first == std::string::npos) {
+		return "";
+	}
+	std::string::size_type last = str.find_last_not_of(whiteSpace);
+	return str.substr(first, (last - first + 1));
 }
 
-void BitcoinExchange::loadDatabase(const std::string& path) {
-	std::ifstream dbFile(path.c_str());
-	if (!dbFile.is_open()) {
-		throw Exception(std::string(strerror(errno)) + " => " + path);
-	}
-
-	double exchangeRate;
-	std::string date;
-
-	std::string line;
+std::vector<std::string> BitcoinExchange::splitTokens(
+    const std::string& str, char delimiter) const {
 	std::vector<std::string> tokens;
-	bool is_header = true;
+	std::stringstream ss(str);
+	std::string token;
 
-	while (std::getline(dbFile, line)) {
-		if (line.empty()) {
-			continue;
-		}
-		tokens = splitTokens(line, ',');
-		if (tokens.size() != 2) {
-			std::cerr << "Error: bad input => " << line << std::endl;
-			continue;
-		}
-		if (is_header) {
-			if (!isValidHeader(tokens, "date", "exchange_rate")) {
-				throw Exception("invalid database file header structure.");
-			}
-			is_header = false;
-			continue;
-		}
-		date = tokens[0];
-		if (!isValidDate(date)) {
-			continue;
-		}
-		exchangeRate = parseValue(tokens[1], true);
-		if (exchangeRate == -1.0) {
-			continue;
-		}
-		_database[date] = exchangeRate;
+	while (std::getline(ss, token, delimiter)) {
+		tokens.push_back(token);
 	}
-	dbFile.close();
+	for (std::vector<std::string>::iterator it = tokens.begin();
+	     it != tokens.end(); ++it) {
+		*it = trimWhitespace(*it);
+	}
+	return tokens;
 }
 
-double BitcoinExchange::getExchangeAmount(
-    const std::string& date, double value) const {
-	std::map<std::string, double>::const_iterator it =
-	    _database.lower_bound(date);
-	if (it != _database.end() && it->first != date) {
-		if (it == _database.begin()) {
-			std::cerr << "Error: no exchange data available before "
-			          << it->first << std::endl;
-			return -1.0;
-		}
-		--it;
-	} else if (it == _database.end()) {
-		if (!_database.empty()) {
-			it = --_database.end();
-		} else {
-			std::cerr << "Error: exchange database is empty." << std::endl;
-			return -1.0;
-		}
-	}
-	return value * it->second;
+std::string BitcoinExchange::getPresentDateString() const {
+	std::time_t rawTime = std::time(NULL);
+	std::tm* timeInfo = std::localtime(&rawTime);
+
+	char buffer[11];
+	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d", timeInfo);
+
+	return std::string(buffer);
 }
 
-void BitcoinExchange::processInput(const std::string& path) {
-	std::ifstream inputFile(path.c_str());
-	if (!inputFile.is_open()) {
-		throw Exception(std::string(strerror(errno)) + " => " + path);
+int BitcoinExchange::extractDigits(const std::string& str) const {
+	for (std::string::size_type i = 0; i < str.length(); ++i) {
+		if (!std::isdigit(str[i])) return -1;
 	}
-
-	double value;
-	std::string date;
-	double amount;
-
-	std::string line;
-	std::vector<std::string> tokens;
-	bool is_header = true;
-
-	while (std::getline(inputFile, line)) {
-		if (line.empty()) {
-			continue;
-		}
-		tokens = splitTokens(line, '|');
-		if (tokens.size() != 2) {
-			std::cerr << "Error: bad input => " << line << std::endl;
-			continue;
-		}
-		if (is_header) {
-			if (!isValidHeader(tokens, "date", "value")) {
-				throw Exception("invalid input file header structure.");
-			}
-			is_header = false;
-			continue;
-		}
-		date = tokens[0];
-		if (!isValidDate(date)) {
-			continue;
-		}
-		value = parseValue(tokens[1], false);
-		if (value == -1.0) {
-			continue;
-		}
-		amount = getExchangeAmount(date, value);
-		if (amount == -1.0) {
-			continue;
-		}
-		std::cout << date << " => " << value << " = " << amount << std::endl;
-	}
-	inputFile.close();
+	return std::atoi(str.c_str());
 }

@@ -14,5 +14,5 @@ test
 bin/
 
 btc
-data.csv
-input.txt
+*.csv
+*.txt
