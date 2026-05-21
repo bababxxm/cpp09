@@ -6,7 +6,7 @@
 /*   By: sklaokli <sklaokli@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/13 14:57:16 by sklaokli          #+#    #+#             */
-/*   Updated: 2026/05/22 04:06:14 by sklaokli         ###   ########.fr       */
+/*   Updated: 2026/05/22 04:09:00 by sklaokli         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -220,7 +220,7 @@ bool BitcoinExchange::isValidHeader(const std::vector<std::string>& tokens,
 
 bool BitcoinExchange::isValidDate(const std::string& date) const {
 	bool isInvalidFormat =
-	    (date.length() != 10 || date[4] != '-' || date[7] != '-');
+	    (date.size() != 10 || date[4] != '-' || date[7] != '-');
 
 	if (isInvalidFormat) {
 		std::cerr << "Error: bad input => " << date << std::endl;
@@ -354,7 +354,7 @@ std::string BitcoinExchange::getPresentDateString() const {
 }
 
 int BitcoinExchange::extractDigits(const std::string& str) const {
-	for (std::string::size_type i = 0; i < str.length(); ++i) {
+	for (std::string::size_type i = 0; i < str.size(); ++i) {
 		if (!std::isdigit(str[i])) return -1;
 	}
 	return std::atoi(str.c_str());

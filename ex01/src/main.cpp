@@ -5,29 +5,14 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: sklaokli <sklaokli@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/05/13 16:16:28 by sklaokli          #+#    #+#             */
-/*   Updated: 2026/05/22 04:18:14 by sklaokli         ###   ########.fr       */
+/*   Created: 2026/05/22 04:15:32 by sklaokli          #+#    #+#             */
+/*   Updated: 2026/05/22 04:16:29 by sklaokli         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include <iostream>
-#include <string>
-#include "BitcoinExchange.hpp"
 
-int main(int argc, char** argv) {
-	if (argc != 2) {
-		std::cerr << "Usage: ./btc [filePath]" << std::endl;
-		return EXIT_FAILURE;
-	}
-
-	try {
-		BitcoinExchange btc;
-		btc.loadDatabase("data.csv");
-		btc.processInput(argv[1]);
-	} catch (const std::exception& e) {
-		std::cerr << e.what() << std::endl;
-		return EXIT_FAILURE;
-	}
-
-	return EXIT_SUCCESS;
+int main() {
+	std::cout << "Exercise initialized successfully!" << std::endl;
+	return 0;
 }

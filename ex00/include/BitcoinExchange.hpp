@@ -6,18 +6,16 @@
 /*   By: sklaokli <sklaokli@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/13 15:32:58 by sklaokli          #+#    #+#             */
-/*   Updated: 2026/05/22 04:03:08 by sklaokli         ###   ########.fr       */
+/*   Updated: 2026/05/22 04:14:11 by sklaokli         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef BITCOINEXCHANGE_HPP
 #define BITCOINEXCHANGE_HPP
 
-#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <exception>
 #include <fstream>
 #include <iostream>
 #include <map>
