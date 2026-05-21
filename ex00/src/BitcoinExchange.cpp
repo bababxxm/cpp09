@@ -6,7 +6,7 @@
 /*   By: sklaokli <sklaokli@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/13 14:57:16 by sklaokli          #+#    #+#             */
-/*   Updated: 2026/05/22 02:10:19 by sklaokli         ###   ########.fr       */
+/*   Updated: 2026/05/22 02:15:20 by sklaokli         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,11 +19,12 @@ BitcoinExchange::Exception::Exception() : _msg("Error: BitcoinExchange") {}
 BitcoinExchange::Exception::Exception(const std::string& msg)
     : _msg("Error: " + msg) {}
 
-BitcoinExchange::Exception::Exception(const Exception& rhs) : _msg(rhs._msg) {}
+BitcoinExchange::Exception::Exception(const Exception& other)
+    : _msg(other._msg) {}
 
 BitcoinExchange::Exception& BitcoinExchange::Exception::operator=(
-    const Exception& rhs) {
-	if (this != &rhs) _msg = rhs._msg;
+    const Exception& other) {
+	if (this != &other) _msg = other._msg;
 	return *this;
 }
 
@@ -37,12 +38,12 @@ const char* BitcoinExchange::Exception::what() const throw() {
 
 BitcoinExchange::BitcoinExchange() {}
 
-BitcoinExchange::BitcoinExchange(const BitcoinExchange& rhs)
-    : _database(rhs._database) {}
+BitcoinExchange::BitcoinExchange(const BitcoinExchange& other)
+    : _database(other._database) {}
 
-BitcoinExchange& BitcoinExchange::operator=(const BitcoinExchange& rhs) {
-	if (this != &rhs) {
-		_database = rhs._database;
+BitcoinExchange& BitcoinExchange::operator=(const BitcoinExchange& other) {
+	if (this != &other) {
+		_database = other._database;
 	}
 	return *this;
 }
@@ -239,6 +240,7 @@ void BitcoinExchange::loadDatabase(const std::string& path) {
 		}
 		_database[date] = exchangeRate;
 	}
+	dbFile.close();
 }
 
 double BitcoinExchange::getExchangeAmount(
@@ -307,4 +309,5 @@ void BitcoinExchange::processInput(const std::string& path) {
 		}
 		std::cout << date << " => " << value << " = " << amount << std::endl;
 	}
+	inputFile.close();
 }
