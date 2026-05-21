@@ -6,7 +6,7 @@
 /*   By: sklaokli <sklaokli@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/13 14:57:16 by sklaokli          #+#    #+#             */
-/*   Updated: 2026/05/22 04:04:33 by sklaokli         ###   ########.fr       */
+/*   Updated: 2026/05/22 04:06:14 by sklaokli         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -80,8 +80,8 @@ void BitcoinExchange::loadDatabase(const std::string& path) {
 		throw Exception(std::string(strerror(errno)) + " => " + path);
 	}
 
-	double exchangeRate;
 	std::string date;
+	double exchangeRate;
 	std::string line;
 	std::vector<std::string> tokens;
 	bool is_header = true;
@@ -131,8 +131,8 @@ void BitcoinExchange::processInput(const std::string& path) {
 		throw Exception(std::string(strerror(errno)) + " => " + path);
 	}
 
-	double value;
 	std::string date;
+	double value;
 	double amount;
 	std::string line;
 	std::vector<std::string> tokens;
