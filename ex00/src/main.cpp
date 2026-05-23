@@ -6,10 +6,11 @@
 /*   By: sklaokli <sklaokli@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/13 16:16:28 by sklaokli          #+#    #+#             */
-/*   Updated: 2026/05/22 04:18:14 by sklaokli         ###   ########.fr       */
+/*   Updated: 2026/05/23 09:51:33 by sklaokli         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include "BitcoinExchange.hpp"

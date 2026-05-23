@@ -6,11 +6,18 @@
 /*   By: sklaokli <sklaokli@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/05/13 14:57:16 by sklaokli          #+#    #+#             */
-/*   Updated: 2026/05/22 04:09:00 by sklaokli         ###   ########.fr       */
+/*   Updated: 2026/05/23 09:47:47 by sklaokli         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "BitcoinExchange.hpp"
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <fstream>
+#include <iostream>
+#include <sstream>
 
 /* ************************************************************************** */
 /*                                                                            */
@@ -18,24 +25,16 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-BitcoinExchange::Exception::Exception() : _msg("Error: BitcoinExchange") {}
-
-BitcoinExchange::Exception::Exception(const std::string& msg)
-    : _msg("Error: " + msg) {}
-
-BitcoinExchange::Exception::Exception(const Exception& other)
-    : _msg(other._msg) {}
-
-BitcoinExchange::Exception& BitcoinExchange::Exception::operator=(
-    const Exception& other) {
-	if (this != &other) _msg = other._msg;
-	return *this;
+const char* BitcoinExchange::FileOpenException::what() const throw() {
+	return "Error: could not open file.";
 }
 
-BitcoinExchange::Exception::~Exception() throw() {}
+const char* BitcoinExchange::DatabaseHeaderException::what() const throw() {
+	return "Error: bad database header.";
+}
 
-const char* BitcoinExchange::Exception::what() const throw() {
-	return _msg.c_str();
+const char* BitcoinExchange::InputHeaderException::what() const throw() {
+	return "Error: bad input header.";
 }
 
 /* ************************************************************************** */
@@ -77,7 +76,8 @@ BitcoinExchange::~BitcoinExchange() {}
 void BitcoinExchange::loadDatabase(const std::string& path) {
 	std::ifstream dbFile(path.c_str());
 	if (!dbFile.is_open()) {
-		throw Exception(std::string(strerror(errno)) + " => " + path);
+		std::cerr << strerror(errno) << " => " << path << std::endl;
+		throw BitcoinExchange::FileOpenException();
 	}
 
 	std::string date;
@@ -90,16 +90,16 @@ void BitcoinExchange::loadDatabase(const std::string& path) {
 		if (line.empty()) {
 			continue;
 		}
+		if (is_header) {
+			if (line != "date,exchange_rate") {
+				throw BitcoinExchange::DatabaseHeaderException();
+			}
+			is_header = false;
+			continue;
+		}
 		tokens = splitTokens(line, ',');
 		if (tokens.size() != 2) {
 			std::cerr << "Error: bad input => " << line << std::endl;
-			continue;
-		}
-		if (is_header) {
-			if (!isValidHeader(tokens, "date", "exchange_rate")) {
-				throw Exception("invalid database file header structure.");
-			}
-			is_header = false;
 			continue;
 		}
 		date = tokens[0];
@@ -128,7 +128,8 @@ void BitcoinExchange::loadDatabase(const std::string& path) {
 void BitcoinExchange::processInput(const std::string& path) {
 	std::ifstream inputFile(path.c_str());
 	if (!inputFile.is_open()) {
-		throw Exception(std::string(strerror(errno)) + " => " + path);
+		std::cerr << strerror(errno) << " => " << path << std::endl;
+		throw BitcoinExchange::FileOpenException();
 	}
 
 	std::string date;
@@ -142,16 +143,16 @@ void BitcoinExchange::processInput(const std::string& path) {
 		if (line.empty()) {
 			continue;
 		}
+		if (is_header) {
+			if (line != "date | value") {
+				throw BitcoinExchange::InputHeaderException();
+			}
+			is_header = false;
+			continue;
+		}
 		tokens = splitTokens(line, '|');
 		if (tokens.size() != 2) {
 			std::cerr << "Error: bad input => " << line << std::endl;
-			continue;
-		}
-		if (is_header) {
-			if (!isValidHeader(tokens, "date", "value")) {
-				throw Exception("invalid input file header structure.");
-			}
-			is_header = false;
 			continue;
 		}
 		date = tokens[0];
@@ -211,14 +212,13 @@ double BitcoinExchange::getExchangeAmount(
 	return value * it->second;
 }
 
-bool BitcoinExchange::isValidHeader(const std::vector<std::string>& tokens,
-    const std::string& match1, const std::string& match2) const {
-	std::string firstRowHeader = tokens[0];
-	std::string secondRowHeader = tokens[1];
-	return firstRowHeader == match1 && secondRowHeader == match2;
-}
+/* ************************************************************************** */
+/*                                                                            */
+/*                              UTILS & HELPERS                               */
+/*                                                                            */
+/* ************************************************************************** */
 
-bool BitcoinExchange::isValidDate(const std::string& date) const {
+bool BitcoinExchange::isValidDate(const std::string& date) {
 	bool isInvalidFormat =
 	    (date.size() != 10 || date[4] != '-' || date[7] != '-');
 
@@ -276,8 +276,7 @@ bool BitcoinExchange::isValidDate(const std::string& date) const {
  * @param isDataBase Boolean flag to bypass the 1000.0 maximum ceiling rule.
  * @return The parsed double value, or -1.0 if syntax or bounds checks fail.
  */
-double BitcoinExchange::parseValue(
-    const std::string& str, bool isDataBase) const {
+double BitcoinExchange::parseValue(const std::string& str, bool isDataBase) {
 	if (str.empty()) {
 		std::cerr << "Error: empty value." << std::endl;
 		return -1.0;
@@ -311,13 +310,7 @@ double BitcoinExchange::parseValue(
 	return value;
 }
 
-/* ************************************************************************** */
-/*                                                                            */
-/*                              UTILS & HELPERS                               */
-/*                                                                            */
-/* ************************************************************************** */
-
-std::string BitcoinExchange::trimWhitespace(const std::string& str) const {
+std::string BitcoinExchange::trimWhitespace(const std::string& str) {
 	const std::string whiteSpace = " \t\r\n";
 	std::string::size_type first = str.find_first_not_of(whiteSpace);
 	if (first == std::string::npos) {
@@ -328,7 +321,7 @@ std::string BitcoinExchange::trimWhitespace(const std::string& str) const {
 }
 
 std::vector<std::string> BitcoinExchange::splitTokens(
-    const std::string& str, char delimiter) const {
+    const std::string& str, char delimiter) {
 	std::vector<std::string> tokens;
 	std::stringstream ss(str);
 	std::string token;
@@ -343,7 +336,7 @@ std::vector<std::string> BitcoinExchange::splitTokens(
 	return tokens;
 }
 
-std::string BitcoinExchange::getPresentDateString() const {
+std::string BitcoinExchange::getPresentDateString() {
 	std::time_t rawTime = std::time(NULL);
 	std::tm* timeInfo = std::localtime(&rawTime);
 
@@ -353,7 +346,7 @@ std::string BitcoinExchange::getPresentDateString() const {
 	return std::string(buffer);
 }
 
-int BitcoinExchange::extractDigits(const std::string& str) const {
+int BitcoinExchange::extractDigits(const std::string& str) {
 	for (std::string::size_type i = 0; i < str.size(); ++i) {
 		if (!std::isdigit(str[i])) return -1;
 	}

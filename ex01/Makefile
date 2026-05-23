@@ -4,7 +4,8 @@ SRC_DIR     :=  src
 OBJ_DIR     :=  bin
 INC_DIR     :=  include
 
-FILES       :=  main.cpp
+FILES       :=  main.cpp \
+				RPN.cpp
 
 SRC         :=  $(addprefix $(SRC_DIR)/, $(FILES))
 OBJ         :=  $(addprefix $(OBJ_DIR)/, $(FILES:%.cpp=%.o))
